@@ -1,3 +1,11 @@
+# Description: Plot Relationships between SAHM and Gold Prices
+# Generates plots for selected intervals showing SAHM and Gold price trends.
+# Plots: 
+#   4-panel shw=owing high correlation periods
+#   a full timeline plot showing SAHM vs Gold prices across the entire dataset
+
+# Inputs: SAHMREALTIME.csv, XAU_USD Historical Data.csv
+# Outputs: sahm_gold_relationships.png, sahm_gold_timeline.png
 import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path

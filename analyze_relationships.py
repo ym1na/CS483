@@ -1,3 +1,7 @@
+# Description: Main Data Processing Script
+# Loads SAHM and Gold data, processes it, merges it, computes correlation, and saves the final dataset.
+# Outputs: SAHM_vs_Gold_Monthly.csv
+
 import pandas as pd
 from pathlib import Path
 import math
