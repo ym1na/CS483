@@ -1,0 +1,44 @@
+================================================================================
+LSTM-GARCH HYBRID MODEL: ANALYSIS REPORT
+================================================================================
+
+DATASET INFORMATION
+--------------------------------------------------------------------------------
+Lookback Window:      30 days
+Forecast Horizon:     5 days
+Number of Features:   22
+Features Used:        Price, log_return, SMA_5, SMA_10, SMA_20...
+Training Period:      2015-05-22 00:00:00 to 2015-07-03 00:00:00
+Test Period:          2015-07-03 00:00:00 to 2019-03-15 00:00:00
+
+MODEL PERFORMANCE METRICS
+--------------------------------------------------------------------------------
+
+Random Walk:
+  MAE:                   $259.1166
+  RMSE:                  $259.1166
+  MAPE:                  435.5750%
+  Directional Accuracy:  0.4954
+
+LSTM:
+  MAE:                   $254.9516
+  RMSE:                  $254.9516
+  MAPE:                  428.5738%
+  Directional Accuracy:  0.4954
+
+LSTM-GARCH Hybrid:
+  MAE:                   $254.9516
+  RMSE:                  $254.9516
+  MAPE:                  428.5738%
+  Directional Accuracy:  0.4954
+
+--------------------------------------------------------------------------------
+
+IMPROVEMENT ANALYSIS
+--------------------------------------------------------------------------------
+LSTM vs Random Walk:      +1.61% RMSE improvement
+LSTM-GARCH vs Random Walk: +1.61% RMSE improvement
+
+[OK] LSTM-GARCH model OUTPERFORMS the Random Walk baseline by 1.61%
+
+================================================================================
