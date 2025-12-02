@@ -52,7 +52,7 @@ def load_gold_prices():
     gold = gold.drop_duplicates(subset=['Date'], keep='first')
     gold = gold.set_index('Date')
     
-    print(f"✓ Loaded gold prices: {len(gold)} daily records from {gold.index.min()} to {gold.index.max()}")
+    print(f"[OK] Loaded gold prices: {len(gold)} daily records from {gold.index.min()} to {gold.index.max()}")
     return gold[['Price']]
 
 
@@ -67,7 +67,7 @@ def load_sahm_indicator():
     sahm = sahm.set_index('observation_date')
     sahm = sahm.sort_index()
     
-    print(f"✓ Loaded SAHM data: {len(sahm)} monthly records from {sahm.index.min()} to {sahm.index.max()}")
+    print(f"[OK] Loaded SAHM data: {len(sahm)} monthly records from {sahm.index.min()} to {sahm.index.max()}")
     return sahm[['SAHMREALTIME']]
 
 
@@ -123,7 +123,7 @@ def compute_technical_indicators(gold_df):
     rs = gain / loss
     df['RSI'] = 100 - (100 / (1 + rs))
     
-    print(f"✓ Computed {len(df.columns)-1} technical indicators")
+    print(f"[OK] Computed {len(df.columns)-1} technical indicators")
     return df
 
 
@@ -136,7 +136,7 @@ def align_with_sahm(gold_df, sahm_df):
     aligned = gold_df.join(sahm_daily, how='left')
     aligned = aligned.fillna(method='ffill')  # Handle any remaining NaN
     
-    print(f"✓ Aligned gold and SAHM data: {len(aligned)} daily records")
+    print(f"[OK] Aligned gold and SAHM data: {len(aligned)} daily records")
     return aligned
 
 
@@ -187,7 +187,7 @@ def prepare_data(test_size=0.2, lookback=LOOKBACK_WINDOW, forecast_horizon=FOREC
     
     # Step 4: Remove rows with NaN (due to indicator calculation windows)
     aligned_df = aligned_df.dropna()
-    print(f"✓ After removing NaN rows: {len(aligned_df)} records")
+    print(f"[OK] After removing NaN rows: {len(aligned_df)} records")
     
     # Save original gold prices before scaling
     gold_prices_original = aligned_df[['Price']].copy()
@@ -195,11 +195,11 @@ def prepare_data(test_size=0.2, lookback=LOOKBACK_WINDOW, forecast_horizon=FOREC
     # Step 5: Normalize all features to [0, 1]
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled_data = scaler.fit_transform(aligned_df)
-    print(f"✓ Scaled {len(aligned_df.columns)} features to [0, 1]")
+    print(f"[OK] Scaled {len(aligned_df.columns)} features to [0, 1]")
     
     # Step 6: Create sequences
     X, y = create_sequences(scaled_data, lookback=lookback, forecast_horizon=forecast_horizon)
-    print(f"✓ Created sequences: X.shape={X.shape}, y.shape={y.shape}")
+    print(f"[OK] Created sequences: X.shape={X.shape}, y.shape={y.shape}")
     
     # Step 7: Train-test split
     split_idx = int(len(X) * (1 - test_size))
@@ -208,11 +208,17 @@ def prepare_data(test_size=0.2, lookback=LOOKBACK_WINDOW, forecast_horizon=FOREC
     X_test = X[split_idx:]
     y_test = y[split_idx:]
     
-    print(f"✓ Train-test split ({(1-test_size)*100:.0f}/{test_size*100:.0f}%)")
+    print(f"[OK] Train-test split ({(1-test_size)*100:.0f}/{test_size*100:.0f}%)")
     print(f"  - X_train: {X_train.shape}, y_train: {y_train.shape}")
     print(f"  - X_test: {X_test.shape}, y_test: {y_test.shape}")
     
     # Metadata
+    # Calculate the actual index in aligned_df for the split
+    # Sequences start at row 'lookback', so split_idx in sequences corresponds to 
+    # aligned_df index of (lookback + split_idx)
+    split_date_idx = lookback + split_idx
+    test_date_idx = lookback + split_idx + lookback
+    
     metadata = {
         'lookback': lookback,
         'forecast_horizon': forecast_horizon,
@@ -220,8 +226,8 @@ def prepare_data(test_size=0.2, lookback=LOOKBACK_WINDOW, forecast_horizon=FOREC
         'feature_names': list(aligned_df.columns),
         'scaler_min': scaler.data_min_,
         'scaler_max': scaler.data_max_,
-        'train_split_date': aligned_df.index[split_idx * lookback],
-        'test_start_date': aligned_df.index[split_idx * lookback + lookback],
+        'train_split_date': aligned_df.index[min(split_date_idx, len(aligned_df)-1)],
+        'test_start_date': aligned_df.index[min(test_date_idx, len(aligned_df)-1)],
         'test_end_date': aligned_df.index[-1],
     }
     

@@ -28,7 +28,7 @@ def test_directory_structure():
     all_exist = True
     for path in required_paths:
         exists = path.exists()
-        status = "✓" if exists else "✗"
+        status = "[OK]" if exists else "[ERROR]"
         print(f"{status} {path.relative_to(base_dir)}")
         if not exists:
             all_exist = False
@@ -45,36 +45,36 @@ def test_imports():
         print("\n[1] Importing standard libraries...")
         import numpy as np
         import pandas as pd
-        print("✓ NumPy and Pandas imported successfully")
+        print("[OK] NumPy and Pandas imported successfully")
         
         print("\n[2] Importing ML libraries...")
         from sklearn.preprocessing import MinMaxScaler
         from sklearn.metrics import mean_absolute_error, mean_squared_error
-        print("✓ Scikit-learn imported successfully")
+        print("[OK] Scikit-learn imported successfully")
         
         print("\n[3] Importing deep learning libraries...")
         import tensorflow as tf
         from tensorflow.keras.models import Model
-        print("✓ TensorFlow/Keras imported successfully")
+        print("[OK] TensorFlow/Keras imported successfully")
         
         print("\n[4] Importing statsmodels...")
         from arch import arch_model
-        print("✓ ARCH/GARCH imported successfully")
+        print("[OK] ARCH/GARCH imported successfully")
         
         print("\n[5] Importing local modules...")
         from data_prep_lstm_garch import prepare_data
-        print("✓ data_prep_lstm_garch imported successfully")
+        print("[OK] data_prep_lstm_garch imported successfully")
         
         from lstm_garch_model import train_and_evaluate_models
-        print("✓ lstm_garch_model imported successfully")
+        print("[OK] lstm_garch_model imported successfully")
         
         from visualize_results import plot_model_predictions
-        print("✓ visualize_results imported successfully")
+        print("[OK] visualize_results imported successfully")
         
         return True
         
     except ImportError as e:
-        print(f"\n✗ Import error: {e}")
+        print(f"\n[ERROR] Import error: {e}")
         print("\nTo fix, run:")
         print("  pip install -r requirements.txt")
         return False
@@ -90,16 +90,16 @@ def test_data_loading():
         
         print("\n[1] Loading SAHM data...")
         sahm = load_sahm_indicator()
-        print(f"✓ Loaded SAHM data: {len(sahm)} records")
+        print(f"[OK] Loaded SAHM data: {len(sahm)} records")
         
         print("\n[2] Loading gold prices...")
         gold = load_gold_prices()
-        print(f"✓ Loaded gold data: {len(gold)} records")
+        print(f"[OK] Loaded gold data: {len(gold)} records")
         
         return True
         
     except Exception as e:
-        print(f"\n✗ Data loading error: {e}")
+        print(f"\n[ERROR] Data loading error: {e}")
         return False
 
 def main():
@@ -115,21 +115,21 @@ def main():
     try:
         results.append(("Directory Structure", test_directory_structure()))
     except Exception as e:
-        print(f"✗ Error in directory check: {e}")
+        print(f"[ERROR] Error in directory check: {e}")
         results.append(("Directory Structure", False))
     
     # Test 2: Imports
     try:
         results.append(("Module Imports", test_imports()))
     except Exception as e:
-        print(f"✗ Error in import test: {e}")
+        print(f"[ERROR] Error in import test: {e}")
         results.append(("Module Imports", False))
     
     # Test 3: Data loading
     try:
         results.append(("Data Loading", test_data_loading()))
     except Exception as e:
-        print(f"✗ Error in data loading test: {e}")
+        print(f"[ERROR] Error in data loading test: {e}")
         results.append(("Data Loading", False))
     
     # Summary
@@ -138,18 +138,18 @@ def main():
     print("=" * 80)
     
     for test_name, passed in results:
-        status = "✓ PASS" if passed else "✗ FAIL"
+        status = "[OK] PASS" if passed else "[ERROR] FAIL"
         print(f"{status}: {test_name}")
     
     all_passed = all(passed for _, passed in results)
     
     print("\n" + "=" * 80)
     if all_passed:
-        print("✓ ALL CHECKS PASSED - Ready to run full pipeline!")
+        print("[OK] ALL CHECKS PASSED - Ready to run full pipeline!")
         print("\nNext step: python run_full_pipeline.py")
         return 0
     else:
-        print("✗ SOME CHECKS FAILED - Please fix issues above")
+        print("[ERROR] SOME CHECKS FAILED - Please fix issues above")
         print("\nCommon fixes:")
         print("  1. Check CSV files are in ym1na/data/ folder")
         print("  2. Run: pip install -r requirements.txt")

@@ -24,75 +24,93 @@ plt.rcParams['font.size'] = 11
 
 def plot_model_predictions(results, save_path=None):
     """Plot actual vs predicted prices for all models"""
-    y_test = results['y_test']
-    predictions = results['predictions']
+    try:
+        y_test = results['y_test']
+        predictions = results['predictions']
+        
+        # Handle empty predictions (when LSTM not available)
+        if not predictions or len(predictions.get('lstm', [])) == 0:
+            print("[WARNING] No predictions available - skipping plot_model_predictions")
+            return None
+        
+        # Take last day of forecast horizon for clarity
+        actual = y_test[:, -1]
+        rw_pred = predictions['rw']
+        lstm_pred = predictions['lstm']
+        hybrid_pred = predictions['hybrid']
+        
+        # Flatten if needed
+        if rw_pred.ndim > 1:
+            rw_pred = rw_pred[:, -1] if rw_pred.shape[1] > 1 else rw_pred.flatten()
+        if lstm_pred.ndim > 1:
+            lstm_pred = lstm_pred[:, -1] if lstm_pred.shape[1] > 1 else lstm_pred.flatten()
+        if hybrid_pred.ndim > 1:
+            hybrid_pred = hybrid_pred[:, -1] if hybrid_pred.shape[1] > 1 else hybrid_pred.flatten()
+        
+        # Create figure with subplots
+        fig, axes = plt.subplots(2, 2, figsize=(18, 12))
+        
+        # Time index for x-axis
+        time_idx = np.arange(len(actual))
+        
+        # Plot 1: All predictions overlaid
+        ax = axes[0, 0]
+        ax.plot(time_idx, actual, 'o-', linewidth=2, markersize=4, label='Actual', color='black')
+        ax.plot(time_idx, rw_pred, 's-', linewidth=1.5, markersize=3, label='Random Walk', alpha=0.7)
+        ax.plot(time_idx, lstm_pred, '^-', linewidth=1.5, markersize=3, label='LSTM', alpha=0.7)
+        ax.plot(time_idx, hybrid_pred, 'd-', linewidth=1.5, markersize=3, label='LSTM-GARCH', alpha=0.7)
+        ax.set_title('All Models: Actual vs Predicted Gold Prices', fontweight='bold', fontsize=12)
+        ax.set_xlabel('Test Sample Index')
+        ax.set_ylabel('Gold Price (USD/oz)')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        
+        # Plot 2: Prediction errors
+        ax = axes[0, 1]
+        rw_error = np.abs(actual - rw_pred)
+        lstm_error = np.abs(actual - lstm_pred)
+        hybrid_error = np.abs(actual - hybrid_pred)
+        
+        ax.plot(time_idx, rw_error, 's-', linewidth=1.5, markersize=3, label='Random Walk', alpha=0.7)
+        ax.plot(time_idx, lstm_error, '^-', linewidth=1.5, markersize=3, label='LSTM', alpha=0.7)
+        ax.plot(time_idx, hybrid_error, 'd-', linewidth=1.5, markersize=3, label='LSTM-GARCH', alpha=0.7)
+        ax.set_title('Absolute Prediction Errors', fontweight='bold', fontsize=12)
+        ax.set_xlabel('Test Sample Index')
+        ax.set_ylabel('Absolute Error (USD/oz)')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        
+        # Plot 3: Error distribution (box plot)
+        ax = axes[1, 0]
+        error_data = [rw_error, lstm_error, hybrid_error]
+        bp = ax.boxplot(error_data, labels=['Random Walk', 'LSTM', 'LSTM-GARCH'], patch_artist=True)
+        for patch, color in zip(bp['boxes'], ['lightcoral', 'lightblue', 'lightgreen']):
+            patch.set_facecolor(color)
+        ax.set_title('Error Distribution Comparison', fontweight='bold', fontsize=12)
+        ax.set_ylabel('Absolute Error (USD/oz)')
+        ax.grid(True, alpha=0.3, axis='y')
+        
+        # Plot 4: Residuals (error vs actual)
+        ax = axes[1, 1]
+        ax.scatter(actual, lstm_error, alpha=0.6, s=50, label='LSTM', color='blue')
+        ax.scatter(actual, hybrid_error, alpha=0.6, s=50, label='LSTM-GARCH', color='green')
+        ax.set_title('Residuals vs Actual Price', fontweight='bold', fontsize=12)
+        ax.set_xlabel('Actual Gold Price (USD/oz)')
+        ax.set_ylabel('Absolute Error (USD/oz)')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"[OK] Saved prediction plot to {save_path}")
+        
+        return fig
     
-    # Take last day of forecast horizon for clarity
-    actual = y_test[:, -1]
-    rw_pred = predictions['rw'][:, -1]
-    lstm_pred = predictions['lstm'][:, -1]
-    hybrid_pred = predictions['hybrid'][:, -1]
-    
-    # Create figure with subplots
-    fig, axes = plt.subplots(2, 2, figsize=(18, 12))
-    
-    # Time index for x-axis
-    time_idx = np.arange(len(actual))
-    
-    # Plot 1: All predictions overlaid
-    ax = axes[0, 0]
-    ax.plot(time_idx, actual, 'o-', linewidth=2, markersize=4, label='Actual', color='black')
-    ax.plot(time_idx, rw_pred, 's-', linewidth=1.5, markersize=3, label='Random Walk', alpha=0.7)
-    ax.plot(time_idx, lstm_pred, '^-', linewidth=1.5, markersize=3, label='LSTM', alpha=0.7)
-    ax.plot(time_idx, hybrid_pred, 'd-', linewidth=1.5, markersize=3, label='LSTM-GARCH', alpha=0.7)
-    ax.set_title('All Models: Actual vs Predicted Gold Prices', fontweight='bold', fontsize=12)
-    ax.set_xlabel('Test Sample Index')
-    ax.set_ylabel('Gold Price (USD/oz)')
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    
-    # Plot 2: Prediction errors
-    ax = axes[0, 1]
-    rw_error = np.abs(actual - rw_pred)
-    lstm_error = np.abs(actual - lstm_pred)
-    hybrid_error = np.abs(actual - hybrid_pred)
-    
-    ax.plot(time_idx, rw_error, 's-', linewidth=1.5, markersize=3, label='Random Walk', alpha=0.7)
-    ax.plot(time_idx, lstm_error, '^-', linewidth=1.5, markersize=3, label='LSTM', alpha=0.7)
-    ax.plot(time_idx, hybrid_error, 'd-', linewidth=1.5, markersize=3, label='LSTM-GARCH', alpha=0.7)
-    ax.set_title('Absolute Prediction Errors', fontweight='bold', fontsize=12)
-    ax.set_xlabel('Test Sample Index')
-    ax.set_ylabel('Absolute Error (USD/oz)')
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    
-    # Plot 3: Error distribution (box plot)
-    ax = axes[1, 0]
-    error_data = [rw_error, lstm_error, hybrid_error]
-    bp = ax.boxplot(error_data, labels=['Random Walk', 'LSTM', 'LSTM-GARCH'], patch_artist=True)
-    for patch, color in zip(bp['boxes'], ['lightcoral', 'lightblue', 'lightgreen']):
-        patch.set_facecolor(color)
-    ax.set_title('Error Distribution Comparison', fontweight='bold', fontsize=12)
-    ax.set_ylabel('Absolute Error (USD/oz)')
-    ax.grid(True, alpha=0.3, axis='y')
-    
-    # Plot 4: Residuals (error vs actual)
-    ax = axes[1, 1]
-    ax.scatter(actual, lstm_error, alpha=0.6, s=50, label='LSTM', color='blue')
-    ax.scatter(actual, hybrid_error, alpha=0.6, s=50, label='LSTM-GARCH', color='green')
-    ax.set_title('Residuals vs Actual Price', fontweight='bold', fontsize=12)
-    ax.set_xlabel('Actual Gold Price (USD/oz)')
-    ax.set_ylabel('Absolute Error (USD/oz)')
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    
-    plt.tight_layout()
-    
-    if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"✓ Saved prediction plot to {save_path}")
-    
-    return fig
+    except Exception as e:
+        print(f"[WARNING] Could not generate prediction plot: {str(e)[:60]}")
+        return None
 
 
 def plot_metrics_comparison(results, save_path=None):
@@ -132,7 +150,7 @@ def plot_metrics_comparison(results, save_path=None):
     
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"✓ Saved metrics plot to {save_path}")
+        print(f"[OK] Saved metrics plot to {save_path}")
     
     return fig
 
@@ -140,7 +158,7 @@ def plot_metrics_comparison(results, save_path=None):
 def plot_lstm_training_history(lstm_model, save_path=None):
     """Plot LSTM training history (loss curves)"""
     if lstm_model.history is None:
-        print("⚠ No training history available")
+        print("[WARNING] No training history available")
         return None
     
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
@@ -169,7 +187,7 @@ def plot_lstm_training_history(lstm_model, save_path=None):
     
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"✓ Saved training history plot to {save_path}")
+        print(f"[OK] Saved training history plot to {save_path}")
     
     return fig
 
@@ -223,9 +241,9 @@ def generate_analysis_report(results, save_path=None):
     report.append(f"LSTM-GARCH vs Random Walk: {hybrid_imp:+.2f}% RMSE improvement")
     
     if hybrid_imp > 0:
-        report.append(f"\n✓ LSTM-GARCH model OUTPERFORMS the Random Walk baseline by {hybrid_imp:.2f}%")
+        report.append(f"\n[OK] LSTM-GARCH model OUTPERFORMS the Random Walk baseline by {hybrid_imp:.2f}%")
     else:
-        report.append(f"\n✗ LSTM-GARCH model underperforms the Random Walk baseline")
+        report.append(f"\n[ERROR] LSTM-GARCH model underperforms the Random Walk baseline")
     
     report.append("\n" + "=" * 80)
     
@@ -234,7 +252,7 @@ def generate_analysis_report(results, save_path=None):
     if save_path:
         with open(save_path, 'w') as f:
             f.write(report_text)
-        print(f"✓ Saved analysis report to {save_path}")
+        print(f"[OK] Saved analysis report to {save_path}")
     
     print("\n" + report_text)
     
@@ -275,7 +293,7 @@ def main():
     generate_analysis_report(results, save_path=output_dir / 'analysis_report.txt')
     
     print("\n" + "="*80)
-    print("✓ ANALYSIS COMPLETE")
+    print("[OK] ANALYSIS COMPLETE")
     print("="*80)
     print(f"All results saved to: {output_dir}/")
     

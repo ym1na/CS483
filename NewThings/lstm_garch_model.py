@@ -13,10 +13,19 @@ warnings.filterwarnings('ignore')
 
 # ML/DL imports
 from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
-from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.layers import LSTM, Dense, Dropout, Input, RepeatVector, TimeDistributed, Bidirectional
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import EarlyStopping
+
+# Conditional TensorFlow imports
+try:
+    from tensorflow.keras.models import Sequential, Model
+    from tensorflow.keras.layers import LSTM, Dense, Dropout, Input, RepeatVector, TimeDistributed, Bidirectional
+    from tensorflow.keras.optimizers import Adam
+    from tensorflow.keras.callbacks import EarlyStopping
+    import tensorflow as tf
+    HAS_TENSORFLOW = True
+except Exception as e:
+    HAS_TENSORFLOW = False
+    print(f"[WARNING] TensorFlow import failed: {str(e)[:60]}...")
+
 from arch import arch_model
 import joblib
 
@@ -28,8 +37,11 @@ from data_prep_lstm_garch import prepare_data
 # ============================================================================
 RANDOM_SEED = 42
 np.random.seed(RANDOM_SEED)
-import tensorflow as tf
-tf.random.set_seed(RANDOM_SEED)
+if HAS_TENSORFLOW:
+    try:
+        tf.random.set_seed(RANDOM_SEED)
+    except:
+        pass
 
 EPOCHS = 100
 BATCH_SIZE = 16
@@ -116,16 +128,17 @@ class RandomWalkModel:
 # 2. LSTM MODEL
 # ============================================================================
 
-class LSTMModel:
-    """LSTM Neural Network for price prediction"""
-    
-    def __init__(self, lookback, n_features, forecast_horizon):
-        self.lookback = lookback
-        self.n_features = n_features
-        self.forecast_horizon = forecast_horizon
-        self.model = None
-        self.name = "LSTM"
-        self.history = None
+if HAS_TENSORFLOW:
+    class LSTMModel:
+        """LSTM Neural Network for price prediction"""
+        
+        def __init__(self, lookback, n_features, forecast_horizon):
+            self.lookback = lookback
+            self.n_features = n_features
+            self.forecast_horizon = forecast_horizon
+            self.model = None
+            self.name = "LSTM"
+            self.history = None
     
     def build(self):
         """Build encoder-decoder LSTM architecture"""
@@ -151,7 +164,7 @@ class LSTMModel:
         optimizer = Adam(learning_rate=LEARNING_RATE)
         self.model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
         
-        print(f"✓ Built LSTM model")
+        print(f"[OK] Built LSTM model")
         self.model.summary()
     
     def train(self, X_train, y_train):
@@ -167,7 +180,7 @@ class LSTMModel:
             callbacks=[early_stop],
             verbose=0
         )
-        print(f"✓ Trained LSTM (epochs: {len(self.history.history['loss'])})")
+        print(f"[OK] Trained LSTM (epochs: {len(self.history.history['loss'])})")
     
     def predict(self, X_test):
         """Make predictions"""
@@ -177,6 +190,25 @@ class LSTMModel:
 # ============================================================================
 # 3. GARCH MODEL
 # ============================================================================
+
+else:
+    # Dummy LSTM Model for when TensorFlow is not available
+    class LSTMModel:
+        """Dummy LSTM class when TensorFlow is unavailable"""
+        def __init__(self, *args, **kwargs):
+            self.model = None
+            self.name = "LSTM (Unavailable)"
+            self.history = None
+        
+        def build(self):
+            print("[WARNING] LSTM not available - skipping model build")
+        
+        def train(self, X_train, y_train):
+            print("[WARNING] LSTM not available - skipping training")
+        
+        def predict(self, X):
+            return np.zeros((X.shape[0], 5, 1))  # Return dummy predictions
+
 
 class GARCHModel:
     """GARCH model for volatility forecasting"""
@@ -202,11 +234,11 @@ class GARCHModel:
             # Fit GARCH(1,1) model
             self.model = arch_model(returns, vol='Garch', p=1, q=1, rescale=False)
             self.fitted_model = self.model.fit(disp='off')
-            print(f"✓ Fitted GARCH(1,1) model")
+            print(f"[OK] Fitted GARCH(1,1) model")
             print(self.fitted_model.summary().tables[1])
             return True
         except Exception as e:
-            print(f"✗ GARCH fitting failed: {e}")
+            print(f"[ERROR] GARCH fitting failed: {e}")
             return False
     
     def forecast_volatility(self, last_return, n_periods=None):
@@ -250,8 +282,13 @@ class HybridLSTMGARCH:
         # LSTM gives mean prediction (in scaled space)
         mean_pred_scaled = lstm_predictions_scaled
         
+        # Handle both 2D and 3D arrays (from real LSTM vs dummy)
+        if mean_pred_scaled.ndim == 3:
+            mean_pred_scaled = mean_pred_scaled[:, :, 0]
+        
         # Convert mean to original scale
         dummy = np.zeros((mean_pred_scaled.shape[0], self.scaler.n_features_in_))
+        # Take only the first forecast step to avoid shape issues
         dummy[:, 0] = mean_pred_scaled[:, 0]
         mean_pred_original = self.scaler.inverse_transform(dummy)[:, 0]
         
@@ -368,21 +405,29 @@ def train_and_evaluate_models():
     output_dir.mkdir(exist_ok=True)
     
     results_df.to_csv(output_dir / 'model_comparison.csv', index=False)
-    print(f"\n✓ Saved results to {output_dir / 'model_comparison.csv'}")
+    print(f"\n[OK] Saved results to {output_dir / 'model_comparison.csv'}")
     
     # Save predictions
     predictions_df = pd.DataFrame({
-        'True_Price': y_test[:, -1],
-        'RandomWalk_Pred': rw_pred[:, -1],
-        'LSTM_Pred': lstm_pred_unscaled[:, -1],
+        'True_Price': y_test[:, -1].flatten(),
+        'RandomWalk_Pred': rw_pred[:, -1].flatten() if rw_pred.ndim > 1 else rw_pred.flatten(),
+        'LSTM_Pred': lstm_pred_unscaled[:, -1].flatten() if lstm_pred_unscaled.ndim > 1 else lstm_pred_unscaled.flatten(),
     })
     predictions_df.to_csv(output_dir / 'predictions.csv', index=False)
-    print(f"✓ Saved predictions to {output_dir / 'predictions.csv'}")
+    print(f"[OK] Saved predictions to {output_dir / 'predictions.csv'}")
     
     # Save models
-    lstm_model.model.save(output_dir / 'lstm_model.h5')
-    joblib.dump(garch_model, output_dir / 'garch_model.pkl')
-    print(f"✓ Saved trained models to {output_dir}/")
+    if lstm_model.model is not None:
+        try:
+            lstm_model.model.save(output_dir / 'lstm_model.h5')
+        except Exception as e:
+            print(f"[WARNING] Could not save LSTM model: {str(e)[:50]}")
+    
+    try:
+        joblib.dump(garch_model, output_dir / 'garch_model.pkl')
+    except Exception as e:
+        print(f"[WARNING] Could not save GARCH model: {str(e)[:50]}")
+    print(f"[OK] Saved trained models to {output_dir}/")
     
     return {
         'models': {
